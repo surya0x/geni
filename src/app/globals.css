@@ -1,26 +1,378 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --accent: #F26522;
+  --accent-hover: #FF7A3D;
+  --bg: #F5F0EB;
+  --bg-alt: #EDE8E2;
+  --surface: #1A1A1A;
+  --surface-light: #2A2A2A;
+  --text: #0D0D0D;
+  --text-muted: #6B6B6B;
+  --text-inverse: #F5F0EB;
+  --border: #D1CBC4;
+  --border-dark: #3A3A3A;
+  --success: #22C55E;
+  --error: #EF4444;
+  --background: var(--bg);
+  --foreground: var(--text);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-surface: var(--surface);
+  --color-surface-light: var(--surface-light);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+  --color-border: var(--border);
+  --color-border-dark: var(--border-dark);
+  --color-bg-alt: var(--bg-alt);
+  --color-success: var(--success);
+  --color-error: var(--error);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Selection ─── */
+::selection {
+  background: var(--accent);
+  color: var(--text-inverse);
 }
 
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* ─── Base ─── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-mono), 'Geist Mono', 'SF Mono', 'Fira Code', monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Brutalist Button ─── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--accent);
+  color: white;
+  font-family: var(--font-geist-mono), monospace;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 2px solid var(--accent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(242, 101, 34, 0.3);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-geist-mono), monospace;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-dark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--surface);
+  color: var(--text-inverse);
+  font-family: var(--font-geist-mono), monospace;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 2px solid var(--surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-dark:hover {
+  background: var(--surface-light);
+  border-color: var(--accent);
+}
+
+/* ─── Cards ─── */
+.card-dark {
+  background: var(--surface);
+  color: var(--text-inverse);
+  border: 1px solid var(--border-dark);
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.card-dark::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+.card-dark:hover::before {
+  transform: scaleX(1);
+}
+
+.card-light {
+  background: white;
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+}
+.card-light:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+/* ─── Bento Grid ─── */
+.bento-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+}
+.bento-grid > * {
+  background: var(--bg);
+}
+
+/* ─── Stat Block ─── */
+.stat-block {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.stat-block .stat-value {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.stat-block .stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+/* ─── Badge ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 1px solid;
+}
+.badge-active {
+  color: var(--success);
+  border-color: var(--success);
+  background: rgba(34, 197, 94, 0.08);
+}
+.badge-pending {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(242, 101, 34, 0.08);
+}
+.badge-sold {
+  color: var(--text-muted);
+  border-color: var(--border);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* ─── Dropzone ─── */
+.dropzone {
+  border: 2px dashed var(--border);
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.dropzone:hover, .dropzone.active {
+  border-color: var(--accent);
+  background: rgba(242, 101, 34, 0.03);
+}
+.dropzone.active {
+  border-style: solid;
+}
+
+/* ─── Input ─── */
+.input-brutalist {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 2px solid var(--border);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.85rem;
+  color: var(--text);
+  transition: border-color 0.15s ease;
+  outline: none;
+}
+.input-brutalist:focus {
+  border-color: var(--accent);
+}
+.input-brutalist::placeholder {
+  color: var(--text-muted);
+}
+
+/* ─── Divider ─── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  width: 100%;
+}
+
+/* ─── Section Label ─── */
+.section-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ─── Scramble Text Animation ─── */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ─── Blur Preview ─── */
+.blur-preview {
+  filter: blur(20px);
+  transform: scale(1.05);
+  transition: all 0.5s ease;
+}
+.blur-preview.unlocked {
+  filter: blur(0);
+  transform: scale(1);
+}
+
+/* ─── Loading Pulse ─── */
+@keyframes pulse-line {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.loading-bar {
+  height: 2px;
+  background: var(--bg-alt);
+  overflow: hidden;
+  position: relative;
+}
+.loading-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: var(--accent);
+  animation: pulse-line 1.5s ease infinite;
+}
+
+/* ─── Pill Nav ─── */
+.pill-nav {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--border);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pill-nav:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ─── Table ─── */
+.table-brutalist {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.8rem;
+}
+.table-brutalist th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+  font-weight: 600;
+}
+.table-brutalist td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.table-brutalist tr:hover td {
+  background: rgba(242, 101, 34, 0.03);
+}
+
+/* ─── Monospace Heading ─── */
+.heading-brutal {
+  font-family: var(--font-geist-mono), monospace;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
 }
