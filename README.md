@@ -297,16 +297,16 @@ aptos move publish --named-addresses geni=default
 
 ## Pages
 
-### 🏠 Landing Page (`/`)
+###  Landing Page (`/`)
 Brutalist hero with "UPLOAD. PRICE. SELL." typography, bento feature grid, stats section, and step-by-step flow.
 
-### 📊 Creator Dashboard (`/dashboard`)
+###  Creator Dashboard (`/dashboard`)
 Drag-and-drop file upload, APT price input, real-time upload progress (Shelby sharding simulation), and listed assets table.
 
-### 🔗 Public Link (`/file/[id]`)
+###  Public Link (`/file/[id]`)
 Blurred content preview, asset metadata, multi-step purchase flow with wallet signing and on-chain confirmation.
 
-### 🔓 Secure Viewer (`/view/[id]`)
+###  Secure Viewer (`/view/[id]`)
 Terminal-style shard retrieval animation, progress tracking, and secure file download.
 
 ---
@@ -364,6 +364,6 @@ MIT © [Geni Protocol](https://github.com/your-username/geni)
 ---
 
 <p align="center">
-  <strong>Built with 🔥 on Aptos</strong><br/>
+  <strong>Built with Love on Aptos</strong><br/>
   <sub>Shelby Protocol • Move Smart Contracts • Next.js 16</sub>
 </p>
