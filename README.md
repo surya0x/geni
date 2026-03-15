@@ -6,10 +6,11 @@
   <img src="https://img.shields.io/badge/Cost-$0-green?style=for-the-badge" alt="Zero Cost"/>
 </p>
 
-<h1 align="center">🔥 GENI</h1>
+<h1 align="center">GENI</h1>
 <h3 align="center">The Fire-Fast Asset Vault</h3>
 <p align="center"><em>A minimalist pay-to-unlock gateway for high-value files.<br/>Upload. Price. Sell. — No backend. No middleman.</em></p>
 
+<p align="center">https://geni-puce.vercel.app/</p>
 ---
 
 ## What is Geni?
