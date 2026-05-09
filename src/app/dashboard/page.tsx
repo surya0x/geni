@@ -1,14 +1,20 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { formatAPT } from "@/lib/aptos";
+import { buildListAssetTx } from "@/lib/contract";
 import {
-  MOCK_ASSETS,
-  truncateAddress,
-  formatAPT,
-  simulateShelbyUpload,
-} from "@/lib/aptos";
+  shelbyUpload,
+  type UploadProgress,
+  getAccountBlobs,
+  getShelbyBlobExplorerUrl,
+  getShelbyAccountExplorerUrl,
+  getAptosTxExplorerUrl,
+  truncateHash,
+} from "@/lib/shelby";
+import type { BlobMetadata } from "@shelby-protocol/sdk/browser";
 import Link from "next/link";
 
 type ListedAsset = {
@@ -18,25 +24,54 @@ type ListedAsset = {
   price: number;
   status: "active" | "pending" | "sold";
   fileSize: string;
+  txHash?: string;
+  accountAddress?: string;
+  blobName?: string;
 };
 
 export default function DashboardPage() {
-  const { connected } = useWallet();
+  const { connected, account, signAndSubmitTransaction } = useWallet();
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [price, setPrice] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStep, setUploadStep] = useState<UploadProgress | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [assets, setAssets] = useState<ListedAsset[]>(
-    MOCK_ASSETS.map((a) => ({
-      id: a.id,
-      cid: a.cid.slice(0, 20) + "...",
-      name: a.name,
-      price: a.price,
-      status: a.status as "active" | "pending" | "sold",
-      fileSize: a.fileSize,
-    }))
-  );
+  const [assets, setAssets] = useState<ListedAsset[]>([]);
+  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
+
+  // Fetch real blobs from Shelby when wallet connects
+  useEffect(() => {
+    if (!connected || !account?.address) {
+      setAssets([]);
+      return;
+    }
+    const fetchBlobs = async () => {
+      setIsLoadingAssets(true);
+      try {
+        const blobs = await getAccountBlobs(account.address.toString());
+        setAssets(
+          (blobs as BlobMetadata[]).map((blob: BlobMetadata, i: number) => ({
+            id: `shelby-${i}-${blob.blobNameSuffix}`,
+            cid: blob.blobMerkleRoot
+              ? Array.from(blob.blobMerkleRoot).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 20) + "..."
+              : "on-chain",
+            name: blob.blobNameSuffix,
+            price: 0,
+            status: blob.isWritten ? ("active" as const) : ("pending" as const),
+            fileSize: blob.size ? `${(blob.size / (1024 * 1024)).toFixed(2)} MB` : "—",
+            accountAddress: account.address.toString(),
+            blobName: blob.blobNameSuffix,
+          }))
+        );
+      } catch (err) {
+        console.error("Failed to fetch blobs:", err);
+      } finally {
+        setIsLoadingAssets(false);
+      }
+    };
+    fetchBlobs();
+  }, [connected, account?.address]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -63,33 +98,49 @@ export default function DashboardPage() {
   );
 
   const handleListAsset = async () => {
-    if (!uploadedFile || !price) return;
+    if (!uploadedFile || !price || !account?.address) return;
     setIsUploading(true);
     setUploadProgress(0);
-
-    // Simulate progress
-    const interval = setInterval(() => {
-      setUploadProgress((p) => {
-        if (p >= 95) {
-          clearInterval(interval);
-          return 95;
-        }
-        return p + Math.random() * 15;
-      });
-    }, 300);
+    setUploadStep(null);
 
     try {
-      const { cid } = await simulateShelbyUpload(uploadedFile);
-      clearInterval(interval);
+      // Step 1-3: Encode + register on Shelby + RPC upload
+      const result = await shelbyUpload(
+        uploadedFile,
+        account.address.toString(),
+        signAndSubmitTransaction,
+        (progress) => {
+          setUploadStep(progress);
+          switch (progress.step) {
+            case "encoding": setUploadProgress(20); break;
+            case "registering": setUploadProgress(50); break;
+            case "uploading": setUploadProgress(75); break;
+            case "done": setUploadProgress(90); break;
+          }
+        }
+      );
+
+      // Step 4: List on Geni contract (on-chain price + metadata)
+      setUploadStep({ step: "registering", message: "Listing on Geni contract..." });
+      const listTx = buildListAssetTx(
+        result.blobName,
+        uploadedFile.name,
+        parseFloat(price),
+        uploadedFile.size
+      );
+      await signAndSubmitTransaction(listTx);
       setUploadProgress(100);
 
       const newAsset: ListedAsset = {
-        id: `file-${Date.now()}`,
-        cid: cid.slice(0, 20) + "...",
+        id: account.address.toString(), // buyer link = /file/[creatorAddress]
+        cid: result.merkleRoot.slice(0, 20) + "...",
         name: uploadedFile.name,
         price: parseFloat(price),
         status: "active",
         fileSize: `${(uploadedFile.size / (1024 * 1024)).toFixed(1)} MB`,
+        txHash: result.txHash,
+        accountAddress: account.address.toString(),
+        blobName: result.blobName,
       };
 
       setAssets((prev) => [newAsset, ...prev]);
@@ -99,11 +150,14 @@ export default function DashboardPage() {
       setTimeout(() => {
         setIsUploading(false);
         setUploadProgress(0);
-      }, 500);
-    } catch {
-      clearInterval(interval);
+        setUploadStep(null);
+      }, 1500);
+    } catch (error) {
+      console.error("Upload failed:", error);
       setIsUploading(false);
       setUploadProgress(0);
+      setUploadStep({ step: "error", message: error instanceof Error ? error.message : "Upload failed" });
+      setTimeout(() => setUploadStep(null), 4000);
     }
   };
 
@@ -144,6 +198,16 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4 mb-2">
           <span className="section-label">Creator Dashboard</span>
           <div className="flex-1 h-px bg-border" />
+          {account?.address && (
+            <a
+              href={getShelbyAccountExplorerUrl(account.address.toString())}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-xs text-accent hover:underline flex items-center gap-1"
+            >
+              View on Explorer ↗
+            </a>
+          )}
           <span className="badge badge-active">● Connected</span>
         </div>
         <h1 className="heading-brutal text-3xl">
@@ -235,7 +299,7 @@ export default function DashboardPage() {
 
             {/* Upload Progress */}
             <AnimatePresence>
-              {isUploading && (
+              {(isUploading || uploadStep) && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
@@ -243,25 +307,43 @@ export default function DashboardPage() {
                   className="mb-4"
                 >
                   <div className="flex justify-between mb-1">
-                    <span className="font-mono text-xs text-text-muted">
-                      {uploadProgress < 50
-                        ? "Sharding to Shelby mesh..."
-                        : uploadProgress < 95
-                        ? "Registering on Aptos..."
-                        : "Complete!"}
+                    <span className={`font-mono text-xs ${uploadStep?.step === "error" ? "text-red-500" : "text-text-muted"}`}>
+                      {uploadStep?.message || "Preparing..."}
                     </span>
                     <span className="font-mono text-xs font-bold">
-                      {Math.round(uploadProgress)}%
+                      {uploadStep?.step === "error" ? "✕" : `${Math.round(uploadProgress)}%`}
                     </span>
                   </div>
                   <div className="h-1 bg-bg-alt overflow-hidden">
                     <motion.div
-                      className="h-full bg-accent"
+                      className={`h-full ${uploadStep?.step === "error" ? "bg-red-500" : "bg-accent"}`}
                       initial={{ width: 0 }}
                       animate={{ width: `${uploadProgress}%` }}
                       transition={{ duration: 0.3 }}
                     />
                   </div>
+
+                  {/* Step indicators */}
+                  {isUploading && uploadStep?.step !== "error" && (
+                    <div className="flex gap-2 mt-3">
+                      {["encoding", "registering", "uploading"].map((step, i) => (
+                        <div key={step} className="flex items-center gap-1">
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              uploadStep?.step === step
+                                ? "bg-accent animate-pulse"
+                                : ["encoding", "registering", "uploading"].indexOf(uploadStep?.step || "") > i
+                                ? "bg-accent"
+                                : "bg-border"
+                            }`}
+                          />
+                          <span className="font-mono text-xs text-text-muted capitalize">
+                            {step === "encoding" ? "Encode" : step === "registering" ? "Register" : "Upload"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -288,10 +370,15 @@ export default function DashboardPage() {
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
                   </svg>
-                  List Asset
+                  Upload to Shelby
                 </>
               )}
             </button>
+
+            {/* Info note */}
+            <p className="font-mono text-xs text-text-muted mt-3 leading-relaxed">
+              ⓘ Uploads require APT (gas) + ShelbyUSD. Files are stored for 30 days on shelbynet testnet.
+            </p>
           </div>
         </motion.div>
 
@@ -308,7 +395,7 @@ export default function DashboardPage() {
                 ▸ Listed Assets
               </h2>
               <span className="font-mono text-xs text-text-muted">
-                {assets.length} files
+                {isLoadingAssets ? "Loading..." : `${assets.length} files`}
               </span>
             </div>
 
@@ -317,9 +404,9 @@ export default function DashboardPage() {
                 <thead>
                   <tr>
                     <th>File</th>
-                    <th>CID</th>
                     <th>Price</th>
                     <th>Status</th>
+                    <th>Records</th>
                     <th>Link</th>
                   </tr>
                 </thead>
@@ -334,7 +421,6 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="text-text-muted">{asset.cid}</td>
                       <td className="font-bold">{formatAPT(asset.price)}</td>
                       <td>
                         <span
@@ -344,11 +430,39 @@ export default function DashboardPage() {
                         </span>
                       </td>
                       <td>
+                        <div className="flex flex-col gap-1">
+                          {asset.blobName && asset.accountAddress && (
+                            <a
+                              href={getShelbyBlobExplorerUrl(asset.accountAddress, asset.blobName)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-mono text-xs text-accent hover:underline flex items-center gap-1"
+                            >
+                              Shelby ↗
+                            </a>
+                          )}
+                          {asset.txHash && (
+                            <a
+                              href={getAptosTxExplorerUrl(asset.txHash)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-mono text-xs text-text-muted hover:text-accent hover:underline flex items-center gap-1"
+                            >
+                              Tx: {truncateHash(asset.txHash, 4)}
+                            </a>
+                          )}
+                          {!asset.txHash && !asset.blobName && (
+                            <span className="font-mono text-xs text-text-muted">—</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
                         <Link
-                          href={`/file/${asset.id}`}
+                          href={`/file/${asset.accountAddress || asset.id}`}
                           className="font-mono text-xs text-accent hover:underline"
+                          target="_blank"
                         >
-                          geni.link/{asset.id}
+                          /file/{(asset.accountAddress || asset.id).slice(0, 10)}…
                         </Link>
                       </td>
                     </tr>

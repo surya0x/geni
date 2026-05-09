@@ -247,6 +247,8 @@ export async function simulatePurchase(
   assetId: string,
   _amount: number
 ): Promise<{ success: boolean; txHash: string }> {
+  void assetId;
+  void _amount;
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 2000));
   return {
